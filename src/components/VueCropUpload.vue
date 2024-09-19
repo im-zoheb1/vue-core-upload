@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref } from 'vue'
 import FileUploader from './FileUploader.vue'
 import ImageCropTool from './ImageCropTool.vue'
-import Cropper from 'cropperjs';
+import Cropper from 'cropperjs'
+import xhrImage from 'xhr'
 
 
 /**
@@ -127,61 +128,46 @@ const fireErrorEvent = (error) => {
   emit('error', error)
 } 
 
-const uploadImage: () => void = () => {
+const getBase64Code = async (blob: Blob): Promise<string> => {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.readAsDataURL(blob)
+    reader.onloadend = () => {
+      resolve(reader.result as string)
+    }
+    reader.onerror = () => {
+      reject(new Error('Error converting blob to base64'))
+    }
+  })
+}
+
+const handleError = (): void => {
+  fireErrorEvent({
+    type: 'UPLOAD_ERROR',
+    message: 'There was an error uploading the image. Please try again.',
+  })
+  endLoading()
+}
+
+const uploadImage = async (): Promise<void> => {
   const image = croppedImage.value
+  const isBinary = true
 
   if (!image) return
 
   startLoading()
 
-  const xhr: XMLHttpRequest = new XMLHttpRequest();
-  const formData: FormData = new FormData();
+  const base64code = await getBase64Code(image)
 
-  formData.append('file', image)
+  const data = {
+    ...props.data,
+    base64code,
+    type: selectedFile.value['type'],
+    filename: selectedFile.value['name'],
+    inputOfFile: 'file',
+  }
 
-  props.data && Object.keys(props.data).forEach(key => {
-    props.data && formData.append(key, props.data[key])
-  })
-
-  xhr.open("POST", props.url, true);
-
-  // Set headers dynamically from props.headers
-  props.headers && Object.keys(props.headers).forEach(key => {
-    props.headers && xhr.setRequestHeader(key, props.headers[key])
-  })
-
-  // Progress event
-  xhr.upload.onprogress = function(event) {
-    if (event.lengthComputable) {
-      progress.value = (event.loaded / event.total) * 100;
-    }
-  };
-
-  // Success event
-  xhr.onload = function() {
-    if (xhr.status === 200) {
-      fireSuccessEvent(JSON.parse(xhr.responseText));
-    } else {
-      fireErrorEvent({
-        type: 'UPLOAD_ERROR',
-        message: 'There was an error uploading the image. Please try again.',
-      })
-    }
-
-    endLoading()
-  };
-
-  // Error event
-  xhr.onerror = function() {
-    fireErrorEvent({
-      type: 'UPLOAD_ERROR',
-      message: 'There was an error uploading the image. Please try again.',
-    })
-    endLoading()
-  };
-
-  // Send the form data
-  xhr.send(formData);
+  xhr('POST', props.url, props.headers, data, fireSuccessEvent, handleError, isBinary)
 }
 </script>
 
