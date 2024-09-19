@@ -3,7 +3,7 @@ import { ref } from 'vue'
 import FileUploader from './FileUploader.vue'
 import ImageCropTool from './ImageCropTool.vue'
 import Cropper from 'cropperjs'
-import xhrImage from 'xhr'
+import xhr from 'core-image-xhr'
 
 
 /**
@@ -162,7 +162,7 @@ const uploadImage = async (): Promise<void> => {
   const data = {
     ...props.data,
     base64code,
-    type: selectedFile.value['type'],
+    type: image.type,
     filename: selectedFile.value['name'],
     inputOfFile: 'file',
   }
